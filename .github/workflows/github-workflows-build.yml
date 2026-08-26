@@ -2,10 +2,10 @@ name: Build Bee DB Manager
 
 on:
   push:
-    branches: [main]
-    tags: ['v*']
+    branches: [main, nightly]
+    tags: ['v*', 'nv*']
   pull_request:
-    branches: [main]
+    branches: [main, nightly]
   workflow_dispatch:
 
 jobs:
@@ -16,7 +16,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            suffix: linux
+            ext: ""
+          - os: windows-latest
+            suffix: windows
+            ext: ".exe"
+          - os: macos-latest
+            suffix: macos
+            ext: ""
 
     steps:
       - name: Checkout repository
@@ -31,7 +40,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pyinstaller pillow
+          pip install pyinstaller
           pip install -r requirements.txt
 
       - name: Prepare sources
@@ -40,39 +49,43 @@ jobs:
           cp "Source code/repl.py" .
           cp "Source code/db_adapters.py" .
 
-      - name: Convert icon for Windows
-        if: matrix.os == 'windows-latest'
+      - name: Determine version
+        id: version
+        shell: bash
         run: |
-          python -c "from PIL import Image; Image.open('assets/icon.png').save('assets/icon.ico', sizes=[(256,256),(128,128),(96,96),(64,64),(48,48),(32,32),(16,16)])"
+          if [[ "${{ github.ref }}" == refs/tags/v* || "${{ github.ref }}" == refs/tags/nv* ]]; then
+            VERSION="${{ github.ref_name }}"
+          else
+            VERSION="dev-${{ github.sha }}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building version: $VERSION"
 
-      - name: Build (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: pyinstaller --noconfirm --onefile --name bee-db --icon assets/icon.png main.py
+      - name: Build binary
+        run: pyinstaller --noconfirm --onefile --name bee-db main.py
 
-      - name: Build (Windows)
-        if: matrix.os == 'windows-latest'
-        run: pyinstaller --noconfirm --onefile --name bee-db --icon assets/icon.ico main.py
+      - name: Rename with version
+        id: rename
+        shell: bash
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          SRC="dist/bee-db${{ matrix.ext }}"
+          DST="dist/bee-db-${VERSION}-${{ matrix.suffix }}${{ matrix.ext }}"
+          mv "$SRC" "$DST"
+          echo "file=$DST" >> $GITHUB_OUTPUT
+          echo "Renamed to: $DST"
 
-      - name: Upload Linux binary
-        if: matrix.os == 'ubuntu-latest'
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: bee-db-linux
-          path: dist/bee-db
-          if-no-files-found: error
-
-      - name: Upload Windows binary
-        if: matrix.os == 'windows-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: bee-db-windows
-          path: dist/bee-db.exe
+          name: bee-db-${{ matrix.suffix }}${{ matrix.ext }}
+          path: ${{ steps.rename.outputs.file }}
           if-no-files-found: error
 
   release:
-    name: Publish GitHub Release
+    name: Publish Release
     needs: build
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/nv')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -86,15 +99,30 @@ jobs:
       - name: Download Windows binary
         uses: actions/download-artifact@v4
         with:
-          name: bee-db-windows
+          name: bee-db-windows.exe
           path: release/
+
+      - name: Download macOS binary
+        uses: actions/download-artifact@v4
+        with:
+          name: bee-db-macos
+          path: release/
+
+      - name: Set prerelease flag
+        id: flags
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/nv* ]]; then
+            echo "prerelease=true" >> $GITHUB_OUTPUT
+            echo "type=NIGHTLY"
+          else
+            echo "prerelease=false" >> $GITHUB_OUTPUT
+            echo "type=STABLE"
+          fi
 
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            release/bee-db
-            release/bee-db.exe
+          files: release/*
           generate_release_notes: true
           draft: false
-          prerelease: false
+          prerelease: ${{ steps.flags.outputs.prerelease }}
