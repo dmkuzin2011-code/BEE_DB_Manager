@@ -37,6 +37,7 @@ class DBRepl:
                 "connect": {k: None for k in ADAPTERS},
                 "disconnect": None,
                 "help": None,
+                "version":None,
                 "exit": None,
                 "quit": None,
             }
@@ -83,6 +84,7 @@ class DBRepl:
             )
             table.add_row("disconnect", "Close the active database connection", "disconnect")
             table.add_row("help", "Display available commands and usage guide", "help")
+            table.add_row("version","Display the program version","version")
             table.add_row("exit / quit", "Close the session and exit the application", "exit")
             table.add_row(
                 "<SQL Command>",
@@ -96,7 +98,8 @@ class DBRepl:
             )
             console.print(table)
             return True
-
+        if first == "version":
+            console.print("1.0.1")
         if first == "connect":
             if len(parts) < 3:
                 console.print("[red]Usage: connect <postgres|mysql|mongo> <url>[/red]")
