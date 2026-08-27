@@ -99,7 +99,7 @@ class DBRepl:
             console.print(table)
             return True
         if first == "version":
-            console.print("1.0.1")
+            console.print("nv1.0.2")
         if first == "connect":
             if len(parts) < 3:
                 console.print("[red]Usage: connect <postgres|mysql|mongo> <url>[/red]")
