@@ -40,7 +40,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pyinstaller
+          pip install pyinstaller pillow
           pip install -r requirements.txt
 
       - name: Prepare sources
@@ -61,8 +61,27 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Building version: $VERSION"
 
-      - name: Build binary
-        run: pyinstaller --noconfirm --onefile --name bee-db main.py
+      - name: Convert icon for Windows (.ico)
+        if: matrix.os == 'windows-latest'
+        run: |
+          python -c "from PIL import Image; img = Image.open('assets/icon.png'); img.save('assets/icon.ico', sizes=[(256,256),(128,128),(64,64),(48,48),(32,32),(16,16)])"
+
+      - name: Convert icon for macOS (.icns)
+        if: matrix.os == 'macos-latest'
+        run: |
+          python -c "from PIL import Image; Image.open('assets/icon.png').save('assets/icon.icns')"
+
+      - name: Build (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: pyinstaller --noconfirm --onefile --name bee-db --icon assets/icon.png main.py
+
+      - name: Build (Windows)
+        if: matrix.os == 'windows-latest'
+        run: pyinstaller --noconfirm --onefile --name bee-db --icon assets/icon.ico main.py
+
+      - name: Build (macOS)
+        if: matrix.os == 'macos-latest'
+        run: pyinstaller --noconfirm --onefile --name bee-db --icon assets/icon.icns main.py
 
       - name: Rename with version
         id: rename
