@@ -43,6 +43,11 @@ jobs:
           pip install pyinstaller pillow
           pip install -r requirements.txt
 
+      - name: Update version file
+        shell: bash
+        run: |
+          python -c "import os; open('Source code/version.py', 'w', encoding='utf-8').write(f'__version__ = \"{os.environ.get(\"GITHUB_REF_NAME\", \"1.0.3\").lstrip(\"v\")}\"\n')"
+
       - name: Convert icon for Windows (.ico)
         if: matrix.os == 'windows-latest'
         run: |
@@ -53,23 +58,23 @@ jobs:
         run: |
           python -c "from PIL import Image; Image.open('assets/icon.png').save('assets/icon.icns')"
 
-      - name: Build (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: pyinstaller --noconfirm --onefile --name bee-db --paths "Source code" "Source code/main.py" --hidden-import=motor.motor_asyncio
-
-      - name: Build (Windows)
-        if: matrix.os == 'windows-latest'
-        run: pyinstaller --noconfirm --onefile --name bee-db --paths "Source code" "Source code/main.py" --hidden-import=motor.motor_asyncio
-
-      - name: Build (macOS)
-        if: matrix.os == 'macos-latest'
-        run: pyinstaller --noconfirm --onefile --name bee-db --paths "Source code" "Source code/main.py" --hidden-import=motor.motor_asyncio
-
-      - name: Update version file
+      - name: Build binary with PyInstaller
         shell: bash
         run: |
-          python -c "import os; open('Source code/version.py', 'w', encoding='utf-8').write(f'__version__ = \"{os.environ[\"GITHUB_REF_NAME\"].lstrip(\"v\")}\"\n')"
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            ICON_FLAG="--icon assets/icon.ico"
+          elif [ "${{ matrix.os }}" = "macos-latest" ]; then
+            ICON_FLAG="--icon assets/icon.icns"
+          else
+            ICON_FLAG=""
+          fi
+          pyinstaller --noconfirm --onefile --name "bee-db-${{ matrix.suffix }}" --paths "Source code" --hidden-import=motor.motor_asyncio $ICON_FLAG "Source code/main.py"
 
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bee-db-${{ matrix.suffix }}
+          path: dist/bee-db-${{ matrix.suffix }}${{ matrix.ext }}
 
   release:
     name: Publish Release
@@ -88,7 +93,7 @@ jobs:
       - name: Download Windows binary
         uses: actions/download-artifact@v4
         with:
-          name: bee-db-windows.exe
+          name: bee-db-windows
           path: release/
 
       - name: Download macOS binary
