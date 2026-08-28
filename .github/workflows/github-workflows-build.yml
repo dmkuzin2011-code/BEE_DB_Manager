@@ -66,6 +66,7 @@ jobs:
         run: pyinstaller --noconfirm --onefile --name bee-db --paths "Source code" "Source code/main.py" --hidden-import=motor.motor_asyncio
 
       - name: Update version file
+        shell: bash
         run: |
           python -c "import os; open('Source code/version.py', 'w', encoding='utf-8').write(f'__version__ = \"{os.environ[\"GITHUB_REF_NAME\"].lstrip(\"v\")}\"\n')"
 
