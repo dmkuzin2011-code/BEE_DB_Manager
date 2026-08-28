@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+from version import __version__
 import shlex
 from typing import Any, Optional
 
@@ -99,15 +99,7 @@ class DBRepl:
             console.print(table)
             return True
         if first == "version":
-<<<<<<< HEAD
-<<<<<<< HEAD
-            console.print("v1.0.2")
-=======
-            console.print("nv1.0.3")
->>>>>>> 105f24b (Nv version changes)
-=======
-            console.print("nv1.0.2")
->>>>>>> b9282c7 (Update version number from 1.0.3 to 1.0.2)
+            console.print(__version__)
         if first == "connect":
             if len(parts) < 3:
                 console.print("[red]Usage: connect <postgres|mysql|mongo> <url>[/red]")
