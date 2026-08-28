@@ -3,7 +3,7 @@ name: Build Bee DB Manager
 on:
   push:
     branches: [main, nightly]
-    tags: ['v*', 'nv*']
+    tags: ['v*', 'nv*', 'nightly', 'stable']
   pull_request:
     branches: [main, nightly]
   workflow_dispatch:
@@ -12,6 +12,8 @@ jobs:
   build:
     name: Build on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    outputs:
+      version: ${{ steps.version.outputs.version }}
 
     strategy:
       fail-fast: false
@@ -49,17 +51,32 @@ jobs:
           cp "Source code/repl.py" .
           cp "Source code/db_adapters.py" .
 
-      - name: Determine version
-        id: version
+      - name: Sync version from tag or branch
         shell: bash
         run: |
-          if [[ "${{ github.ref }}" == refs/tags/v* || "${{ github.ref }}" == refs/tags/nv* ]]; then
-            VERSION="${{ github.ref_name }}"
+          REF="${{ github.ref }}"
+          REF_NAME="${{ github.ref_name }}"
+          
+          if [[ "$REF" == refs/tags/v* ]]; then
+            VERSION="${REF_NAME#v}"
+          elif [[ "$REF" == refs/tags/nv* ]]; then
+            VERSION="${REF_NAME#nv}"
+          elif [[ "$REF" == refs/tags/nightly ]]; then
+            VERSION="nightly-${GITHUB_RUN_NUMBER}"
+          elif [[ "$REF" == refs/tags/stable ]]; then
+            VERSION="stable-${GITHUB_RUN_NUMBER}"
+          elif [[ "$REF" == refs/heads/nightly ]]; then
+            SHORT_SHA=$(git rev-parse --short HEAD)
+            VERSION="nightly-${GITHUB_RUN_NUMBER}-${SHORT_SHA}"
           else
-            VERSION="dev-${{ github.sha }}"
+            SHORT_SHA=$(git rev-parse --short HEAD)
+            VERSION="dev-${SHORT_SHA}"
           fi
+          
+          echo "__version__ = \"$VERSION\"" > version.py
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Building version: $VERSION"
+          cat version.py
+        id: version
 
       - name: Convert icon for Windows (.ico)
         if: matrix.os == 'windows-latest'
@@ -104,7 +121,7 @@ jobs:
   release:
     name: Publish Release
     needs: build
-    if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/nv')
+    if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/nv') || github.ref == 'refs/tags/nightly' || github.ref == 'refs/tags/stable'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -130,12 +147,10 @@ jobs:
       - name: Set prerelease flag
         id: flags
         run: |
-          if [[ "${{ github.ref }}" == refs/tags/nv* ]]; then
+          if [[ "${{ github.ref }}" == refs/tags/nv* || "${{ github.ref }}" == refs/tags/nightly ]]; then
             echo "prerelease=true" >> $GITHUB_OUTPUT
-            echo "type=NIGHTLY"
           else
             echo "prerelease=false" >> $GITHUB_OUTPUT
-            echo "type=STABLE"
           fi
 
       - name: Create release
