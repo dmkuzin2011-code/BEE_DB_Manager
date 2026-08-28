@@ -67,9 +67,8 @@ jobs:
 
       - name: Update version file
         run: |
-          TAG_VERSION="${{ github.ref_name }}"
-          CLEAN_VERSION="${TAG_VERSION#v}"
-          echo "__version__ = '$CLEAN_VERSION'" > "Source code/version.py"
+          python -c "import os; open('Source code/version.py', 'w', encoding='utf-8').write(f'__version__ = \"{os.environ[\"GITHUB_REF_NAME\"].lstrip(\"v\")}\"\n')"
+
 
   release:
     name: Publish Release
