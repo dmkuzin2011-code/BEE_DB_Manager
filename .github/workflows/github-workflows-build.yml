@@ -55,15 +55,15 @@ jobs:
 
       - name: Build (Linux)
         if: matrix.os == 'ubuntu-latest'
-        run: pyinstaller --noconfirm --onefile --name bee-db --icon assets/icon.png --paths "Source code" "Source code/main.py"
+        run: pyinstaller --noconfirm --onefile --name bee-db --paths "Source code" "Source code/main.py" --hidden-import=motor.motor_asyncio
 
       - name: Build (Windows)
         if: matrix.os == 'windows-latest'
-        run: pyinstaller --noconfirm --onefile --name bee-db --icon assets/icon.ico --paths "Source code" "Source code/main.py"
+        run: pyinstaller --noconfirm --onefile --name bee-db --paths "Source code" "Source code/main.py" --hidden-import=motor.motor_asyncio
 
       - name: Build (macOS)
         if: matrix.os == 'macos-latest'
-        run: pyinstaller --noconfirm --onefile --name bee-db --icon assets/icon.icns --paths "Source code" "Source code/main.py"
+        run: pyinstaller --noconfirm --onefile --name bee-db --paths "Source code" "Source code/main.py" --hidden-import=motor.motor_asyncio
 
       - name: Update version file
         run: |

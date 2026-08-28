@@ -6,7 +6,7 @@ from typing import Any, Optional
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
-
+from motor.motor_asyncio import AsyncIOMotorClient
 
 class DBAdapter(ABC):
     @abstractmethod
@@ -80,7 +80,7 @@ class MongoAdapter(DBAdapter):
         self.db = None
 
     async def connect(self, url: str) -> None:
-        from motor.motor_asyncio import AsyncIOMotorClient
+        
 
         self.client = AsyncIOMotorClient(url)
         db_name = url.rsplit("/", 1)[-1].split("?")[0] or "test"
